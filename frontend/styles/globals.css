@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== GLOBAL RESET ===== */
+html, body {
+  padding: 0;
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+}
+
+/* ===== BACKGROUND ===== */
+body {
+  background: linear-gradient(to bottom, #ede9fe, #ffffff);
+  color: #1f2937;
+}
+
+html.dark body {
+  background: radial-gradient(circle at top, #1f1d2b, #0f172a 55%);
+  color: #e5e7eb;
+}
+
+/* ===== SCROLLBAR (optional nice UI) ===== */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c4b5fd;
+  border-radius: 10px;
+}
+
+/* ===== INPUT & BUTTON CLEANUP ===== */
+input, button {
+  outline: none;
+  border: none;
+}
+
+/* ===== SMOOTH TEXT ===== */
+* {
+  box-sizing: border-box;
+}
