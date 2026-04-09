@@ -45,9 +45,9 @@ export default function PersonalityTest() {
   const syncPersonality = async (personalityType) => {
     try {
       const user = JSON.parse(localStorage.getItem("user"));
-      if (user?.uid) {
+      if (user?.userId) {
         await axios.put(`${API_BASE}/user/personality`, {
-          firebaseId: user.uid,
+          userId: user.userId,
           personalityType,
         });
       }

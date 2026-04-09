@@ -1,5 +1,4 @@
 import { useRouter } from "next/router";
-// import { signInWithGoogle } from "../utils/firebase";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import Head from "next/head";
@@ -26,7 +25,7 @@ export default function Landing() {
       
       // -- GUEST LOGIN BYPASS --
       const guestUser = {
-        firebaseId: "guest_" + Math.random().toString(36).substring(2, 9),
+        userId: "guest_" + Math.random().toString(36).substring(2, 9),
         name: "Guest Explorer",
         email: "guest@aura.ai",
         isGuest: true

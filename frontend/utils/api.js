@@ -12,7 +12,7 @@ export const sendMessageToAI = async (message, therapyMode = "cbt", personalityT
 
     const res = await API.post("/chat", {
       message,
-      userId: user?.firebaseId,
+      userId: user?.userId,
       personalityType,
       therapyMode,
       currentMood: localStorage.getItem("currentMood") || "Tranquil"
@@ -37,7 +37,7 @@ export const streamMessageToAI = async (message, sessionId, therapyMode = "cbt",
       },
       body: JSON.stringify({
         message,
-        userId: user?.firebaseId,
+        userId: user?.userId,
         sessionId,
         personalityType,
         therapyMode,
@@ -85,7 +85,7 @@ export const fetchSessions = async () => {
   try {
     const user = JSON.parse(localStorage.getItem("user"));
     if (!user) return [];
-    const res = await API.get(`/sessions/${user.firebaseId}`);
+    const res = await API.get(`/sessions/${user.userId}`);
     return res.data;
   } catch (err) {
     console.error(err);
@@ -96,8 +96,8 @@ export const fetchSessions = async () => {
 export const createSession = async (sessionName = "New Session") => {
   try {
     const user = JSON.parse(localStorage.getItem("user"));
-    if (!user?.firebaseId) return null; // guard: don't call if not logged in
-    const res = await API.post(`/sessions`, { userId: user.firebaseId, sessionName });
+    if (!user?.userId) return null; // guard: don't call if not logged in
+    const res = await API.post(`/sessions`, { userId: user.userId, sessionName });
     return res.data;
   } catch (err) {
     console.error(err);
@@ -140,7 +140,7 @@ export const fetchJournals = async () => {
   try {
     const user = JSON.parse(localStorage.getItem("user"));
     if (!user) return [];
-    const res = await API.get(`/journal/${user.firebaseId}`);
+    const res = await API.get(`/journal/${user.userId}`);
     return res.data;
   } catch (error) {
     console.error(error);
@@ -151,7 +151,7 @@ export const fetchJournals = async () => {
 export const saveJournal = async (text) => {
   try {
     const user = JSON.parse(localStorage.getItem("user"));
-    const res = await API.post("/journal", { text, userId: user?.firebaseId });
+    const res = await API.post("/journal", { text, userId: user?.userId });
     return res.data.entry;
   } catch (error) {
     console.error(error);
@@ -163,7 +163,7 @@ export const fetchProgress = async () => {
   try {
     const user = JSON.parse(localStorage.getItem("user"));
     if (!user) return null;
-    const res = await API.get(`/progress/${user.firebaseId}`);
+    const res = await API.get(`/progress/${user.userId}`);
     return res.data;
   } catch (error) {
     console.error(error);
@@ -175,7 +175,7 @@ export const fetchPersonality = async () => {
   try {
     const user = JSON.parse(localStorage.getItem("user"));
     if (!user) return { personality: "INFP", therapyMode: "cbt" };
-    const res = await API.get(`/personality/${user.firebaseId}`);
+    const res = await API.get(`/personality/${user.userId}`);
     return res.data;
   } catch (error) {
     console.error(error);
@@ -187,7 +187,7 @@ export const setPersonality = async (personality, therapyMode) => {
     try {
       const user = JSON.parse(localStorage.getItem("user"));
       const res = await API.post("/personality", {
-          userId: user?.firebaseId,
+          userId: user?.userId,
           personality,
           therapyMode
       });
@@ -202,7 +202,7 @@ export const fetchInsights = async () => {
   try {
     const user = JSON.parse(localStorage.getItem("user"));
     if (!user) return null;
-    const res = await fetch(`${BASE_URL}/progress/insights/${user.firebaseId}`);
+    const res = await fetch(`${BASE_URL}/progress/insights/${user.userId}`);
     const data = await res.json();
     return data;
   } catch (error) {

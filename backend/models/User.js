@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema({
-  firebaseId: String,
+  userId: String,
   name: String,
   email: String,
   photo: String,

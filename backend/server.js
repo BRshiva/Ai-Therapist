@@ -8,6 +8,7 @@ import userRoutes from "./routes/userRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import journalRoutes from "./routes/journalRoutes.js";
 import progressRoutes from "./routes/progressRoutes.js";
+import sessionRoutes from "./routes/sessionRoutes.js";
 
 dotenv.config();
 
@@ -94,6 +95,7 @@ app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/journal", journalRoutes);
 app.use("/api/progress", progressRoutes);
+app.use("/api/sessions", sessionRoutes);
 
 // MongoDB connect — server starts even if DB is temporarily unavailable
 if (!process.env.MONGO_URI) {
