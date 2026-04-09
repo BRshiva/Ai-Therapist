@@ -2,7 +2,7 @@
 echo Running git add...
 git add .
 echo Running git commit...
-git commit -m "Fix: Add missing routes and utils, correct package versions for Render"
+git commit -m "Fix: Update API URL to Render and bypass Google Login with Guest mode"
 echo Running git push...
-git push origin main
+git push origin master:main
 echo Done.

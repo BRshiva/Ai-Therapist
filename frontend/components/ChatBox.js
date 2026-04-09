@@ -3,7 +3,7 @@ import axios from "axios";
 import MessageBubble from "./MessageBubble";
 import { streamMessageToAI } from "../utils/api";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api";
+const API_BASE = "https://ai-therapist-1-kndl.onrender.com/api";
 const FEELINGS = [
   { emoji: "😔", label: "Down", value: 1 },
   { emoji: "😊", label: "Content", value: 2 },
