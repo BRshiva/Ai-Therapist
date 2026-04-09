@@ -1,184 +1,175 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import { useRouter } from "next/router";
 import Navbar from "../components/Navbar";
-import Profile from "../components/Profile";
+import Loader from "../components/Loader";
+import { fetchProgress, fetchInsights } from "../utils/api";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, CartesianGrid
 } from "recharts";
+import { motion } from "framer-motion";
+
+const moodMap = { happy:5, joy:5, calm:4, neutral:3, anxious:2, sad:1, angry:1, fear:1, fearful:1, stressed:2, restless:2 };
+
+const moodLabel = (v) => {
+  if (v >= 4.5) return { label: "Flourishing", color: "#34d399" };
+  if (v >= 3.5) return { label: "Balanced", color: "#60a5fa" };
+  if (v >= 2.5) return { label: "Neutral", color: "#a78bfa" };
+  if (v >= 1.5) return { label: "Low", color: "#fb923c" };
+  return { label: "Heavy", color: "#f87171" };
+};
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  const score = payload[0].value;
+  const { label: mL, color } = moodLabel(score);
+  return (
+    <div className="glass rounded-xl px-4 py-3 text-xs space-y-1" style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
+      <p className="text-slate-400">{label}</p>
+      <p className="font-bold" style={{ color }}>{mL} · {score}/5</p>
+      {payload[0].payload.emotion && <p className="text-slate-500 italic">{payload[0].payload.emotion}</p>}
+    </div>
+  );
+};
 
 export default function Dashboard() {
-  const [chartData, setChartData] = useState([]);
-  const [insights, setInsights] = useState(null);
-  const API_BASE =
-    process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api";
+  const router = useRouter();
+  const [data, setData] = useState([]);
+  const [insight, setInsight] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [avgMood, setAvgMood] = useState(null);
 
   useEffect(() => {
-    fetchProgress();
-  }, []);
-
-  const fetchProgress = async () => {
-    try {
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const userId = user?.uid;
-      if (!userId) return;
-
-      const res = await axios.get(`${API_BASE}/progress/${userId}`);
-
-      const entries = res.data.entries || [];
-      const emotions = res.data.emotions || [];
-
-      const moodScore = (emotion) => {
-        const e = String(emotion || "").toLowerCase();
-        if (e === "happy") return 3;
-        if (e === "neutral") return 2;
-        if (e === "anxious") return 1.5;
-        if (e === "sad") return 1;
-        return 2;
-      };
-
-      if (entries.length) {
-        const mapped = entries
-          .map((x) => ({
-            emotion: x.emotion,
-            severity: x.severity,
-            t: x.recordedAt ? new Date(x.recordedAt).getTime() : null,
-          }))
-          .filter((x) => typeof x.t === "number")
-          .sort((a, b) => a.t - b.t);
-
-        const now = Date.now();
-        const weekMs = 7 * 24 * 60 * 60 * 1000;
-        const weeks = 4;
-        const start = now - weeks * weekMs;
-
-        const windowed = mapped.filter((x) => x.t >= start);
-        const weeklyBuckets = Array.from({ length: weeks }, (_, i) => {
-          const bucketStart = start + i * weekMs;
-          const bucketEnd = bucketStart + weekMs;
-          const list = windowed.filter((x) => x.t >= bucketStart && x.t < bucketEnd);
-          return { i, bucketStart, bucketEnd, list };
+    if (!localStorage.getItem("user")) { router.push("/"); return; }
+    const load = async () => {
+      const [res, ins] = await Promise.all([fetchProgress(), fetchInsights()]);
+      if (ins?.insight) setInsight(ins.insight);
+      const src = res?.entries?.length > 0 ? res.entries : null;
+      if (src) {
+        const formatted = src.map(e => {
+          let mood = moodMap[e.emotion?.toLowerCase()] || 3;
+          if (mood < 3 && e.severity > 5) mood -= 1;
+          const d = new Date(e.timestamp);
+          return {
+            interaction: d.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+            mood: Math.max(0.5, mood),
+            emotion: e.emotion,
+          };
         });
-
-        const avg = (list) => {
-          if (!list.length) return 0;
-          const sum = list.reduce((acc, x) => acc + moodScore(x.emotion), 0);
-          return sum / list.length;
-        };
-
-        const countsByEmotion = (list) => {
-          return list.reduce((acc, x) => {
-            const key = String(x.emotion || "neutral");
-            acc[key] = (acc[key] || 0) + 1;
-            return acc;
-          }, {});
-        };
-
-        const lastWeek = weeklyBuckets[weeks - 1]?.list || [];
-        const prevWeek = weeklyBuckets[weeks - 2]?.list || [];
-
-        const topEmotion = (() => {
-          const c = countsByEmotion(lastWeek);
-          const pairs = Object.entries(c);
-          if (!pairs.length) return "neutral";
-          pairs.sort((a, b) => b[1] - a[1]);
-          return pairs[0][0];
-        })();
-
-        const severityCounts = (() => {
-          const c = { low: 0, medium: 0, high: 0 };
-          lastWeek.forEach((x) => {
-            const s = String(x.severity || "low").toLowerCase();
-            if (c[s] !== undefined) c[s] += 1;
-          });
-          return c;
-        })();
-
-        const weeklyAvg = weeklyBuckets.map((b, idx) => {
-          const v = avg(b.list);
-          return { label: `Week ${idx + 1}`, mood: v };
+        setData(formatted);
+        setAvgMood((formatted.reduce((a, b) => a + b.mood, 0) / formatted.length).toFixed(1));
+      } else if (res?.emotions?.length > 0) {
+        const formatted = res.emotions.map((em, i) => {
+          let mood = moodMap[em?.toLowerCase()] || 3;
+          return { interaction: `#${i + 1}`, mood: Math.max(0.5, mood), emotion: em };
         });
-
-        const avgPrev = avg(prevWeek);
-        const avgCurr = avg(lastWeek);
-        const delta = avgCurr - avgPrev;
-
-        const trendLabel =
-          !avgPrev || !avgCurr
-            ? "Not enough data to compare yet"
-            : delta > 0.15
-              ? "Improving"
-              : delta < -0.15
-                ? "Worsening"
-                : "Staying steady";
-
-        setChartData(weeklyAvg);
-
-        setInsights({ topEmotion, trendLabel, severityCounts });
-      } else {
-        const formatted = emotions.map((e, index) => ({
-          day: index + 1,
-          mood: moodScore(e),
-        }));
-        setChartData(formatted);
-        setInsights(null);
+        setData(formatted);
+        setAvgMood((formatted.reduce((a, b) => a + b.mood, 0) / formatted.length).toFixed(1));
       }
-    } catch (err) {
-      console.error(err);
-    }
-  };
+      setLoading(false);
+    };
+    load();
+  }, [router]);
+
+  if (loading) return <div className="h-screen bg-[#030712] flex items-center justify-center"><Loader text="Analyzing your journey..." /></div>;
+
+  const currentMood = avgMood ? moodLabel(parseFloat(avgMood)) : null;
 
   return (
-    <div className="p-4 pb-20">
-      <Profile />
-      <h1 className="text-xl font-semibold mb-4">
-        Your Mental Health Progress 📊
-      </h1>
-
-      <div className="bg-white/70 backdrop-blur-xl p-4 rounded-2xl shadow dark:bg-slate-900/50">
-        {insights ? (
-          <div className="flex items-start justify-between gap-4 mb-3">
-            <div className="text-sm text-slate-700 dark:text-slate-200">
-              <p className="font-medium">
-                Trend:{" "}
-                <span className="text-purple-700 dark:text-violet-300">
-                  {insights.trendLabel}
-                </span>
-              </p>
-              <p className="mt-1">
-                Most common emotion (last 7 days):{" "}
-                <span className="font-medium text-purple-700 dark:text-violet-300">
-                  {insights.topEmotion}
-                </span>
-              </p>
-            </div>
-            <div className="text-xs text-slate-700 dark:text-slate-200">
-              <p className="font-medium">Severity</p>
-              <p>Low: {insights.severityCounts.low}</p>
-              <p>Medium: {insights.severityCounts.medium}</p>
-              <p>High: {insights.severityCounts.high}</p>
-            </div>
-          </div>
-        ) : (
-          <div className="text-sm text-slate-700 dark:text-slate-200 mb-2">
-            Tracking your mood pattern over time.
-          </div>
-        )}
-
-        <ResponsiveContainer width="100%" height={250}>
-          <LineChart data={chartData}>
-            <XAxis dataKey={insights ? "label" : "day"} />
-            <YAxis domain={[0, 3]} ticks={[1, 1.5, 2, 2.5, 3]} />
-            <Tooltip />
-            <Line type="monotone" dataKey="mood" stroke="#8b5cf6" strokeWidth={3} />
-          </LineChart>
-        </ResponsiveContainer>
+    <div className="min-h-screen bg-[#030712] mesh-bg flex flex-col items-center p-4 pb-28">
+      {/* Ambient */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="blob absolute top-[-10%] right-[-10%] w-[600px] h-[600px] rounded-full opacity-20"
+          style={{ background: "radial-gradient(circle, rgba(99,102,241,0.2) 0%, transparent 70%)" }} />
+        <div className="blob blob-delay absolute bottom-[-15%] left-[-5%] w-[500px] h-[500px] rounded-full opacity-15"
+          style={{ background: "radial-gradient(circle, rgba(167,139,250,0.15) 0%, transparent 70%)" }} />
       </div>
 
+      <div className="relative z-10 w-full max-w-2xl space-y-6 pt-6">
+        {/* Header */}
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-start justify-between">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold tracking-[0.2em] uppercase text-violet-400">Progress Tracking</p>
+            <h1 className="text-3xl font-bold text-white">Insights</h1>
+          </div>
+          {currentMood && (
+            <div className="glass px-4 py-2.5 rounded-2xl text-right">
+              <p className="text-xs text-slate-500">Avg. Mood</p>
+              <p className="font-bold text-base" style={{ color: currentMood.color }}>{currentMood.label}</p>
+              <p className="text-xs" style={{ color: currentMood.color }}>{avgMood}/5</p>
+            </div>
+          )}
+        </motion.div>
+
+        {/* AI Insight card */}
+        {insight && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+            className="rounded-3xl p-6 space-y-3 relative overflow-hidden"
+            style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.15), rgba(79,70,229,0.08))", border: "1px solid rgba(124,58,237,0.25)", boxShadow: "0 0 40px rgba(124,58,237,0.1)" }}>
+            <div className="absolute top-0 right-0 w-32 h-32 opacity-10" style={{ background: "radial-gradient(circle, #7c3aed 0%, transparent 70%)" }} />
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-sm">✦</div>
+              <span className="text-xs font-semibold text-violet-400 uppercase tracking-wider">AI Insight</span>
+            </div>
+            <p className="text-slate-300 text-sm leading-relaxed">{insight}</p>
+          </motion.div>
+        )}
+
+        {/* Chart */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+          className="glass rounded-3xl p-6"
+          style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)" }}>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-sm font-semibold text-white">Mood Timeline</h2>
+            <span className="text-xs text-slate-600">{data.length} data points</span>
+          </div>
+
+          {data.length < 2 ? (
+            <div className="flex flex-col items-center justify-center h-40 gap-3">
+              <div className="text-3xl">📈</div>
+              <p className="text-slate-600 text-sm text-center">Chat more to see your mood trends here.</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="moodGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#7c3aed" stopOpacity={0.5} />
+                    <stop offset="100%" stopColor="#7c3aed" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                <XAxis dataKey="interaction" stroke="transparent" tick={{ fill: "#475569", fontSize: 10 }} tickLine={false} axisLine={false} />
+                <YAxis domain={[0, 5]} stroke="transparent" tick={{ fill: "#475569", fontSize: 10 }} tickLine={false} axisLine={false}
+                  tickFormatter={v => v === 5 ? "Great" : v === 3 ? "Okay" : v === 1 ? "Low" : ""} />
+                <Tooltip content={<CustomTooltip />} cursor={{ stroke: "rgba(124,58,237,0.3)", strokeWidth: 1 }} />
+                <Area type="monotone" dataKey="mood" stroke="#7c3aed" strokeWidth={2.5}
+                  fill="url(#moodGrad)" dot={{ fill: "#7c3aed", r: 3, strokeWidth: 0 }}
+                  activeDot={{ fill: "#a78bfa", r: 5, strokeWidth: 0, boxShadow: "0 0 10px #7c3aed" }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </motion.div>
+
+        {/* Stats row */}
+        {data.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+            className="grid grid-cols-3 gap-3">
+            {[
+              { label: "Sessions", value: data.length, icon: "🗓" },
+              { label: "Best Mood", value: `${Math.max(...data.map(d => d.mood))}/5`, icon: "✨" },
+              { label: "Streak", value: "Active", icon: "🔥" },
+            ].map((s, i) => (
+              <div key={i} className="glass rounded-2xl p-4 text-center"
+                style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)" }}>
+                <div className="text-2xl mb-1">{s.icon}</div>
+                <div className="text-lg font-bold text-white">{s.value}</div>
+                <div className="text-xs text-slate-600">{s.label}</div>
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </div>
       <Navbar />
     </div>
   );

@@ -1,54 +1,67 @@
-import Image from "next/image";
 import { motion } from "framer-motion";
 
-export default function MessageBubble({ role, text }) {
+const personalityColors = {
+  INFP: { from: "#c084fc", to: "#818cf8", bg: "rgba(192,132,252,0.08)" },
+  ENFJ: { from: "#34d399", to: "#06b6d4", bg: "rgba(52,211,153,0.08)" },
+  INTJ: { from: "#60a5fa", to: "#818cf8", bg: "rgba(96,165,250,0.08)" },
+  ESFP: { from: "#fb923c", to: "#f472b6", bg: "rgba(251,146,60,0.08)" },
+  default: { from: "#a78bfa", to: "#818cf8", bg: "rgba(167,139,250,0.08)" },
+};
+
+export default function MessageBubble({ role, text, personalityType }) {
   const isUser = role === "user";
-
-  const personality = typeof window !== "undefined"
-    ? localStorage.getItem("personality")
-    : "INFP";
-
-  const avatars = {
-    INFP: "/avatars/infp.png",
-    INTJ: "/avatars/intj.png",
-    ENFJ: "/avatars/enfj.png",
-    ESFP: "/avatars/esfp.png",
-  };
+  const colors = personalityColors[personalityType] || personalityColors.default;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`flex items-end gap-2 ${isUser ? "justify-end" : ""}`}
+      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
+      className={`flex gap-3 ${isUser ? "flex-row-reverse" : "flex-row"} group`}
     >
+      {/* Avatar */}
       {!isUser && (
-        <Image
-          src={avatars[personality] || "/ai.png"}
-          width={32}
-          height={32}
-          className="rounded-full"
-          alt="AI"
-        />
+        <div
+          className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center text-sm font-bold shadow-lg mt-1"
+          style={{
+            background: `linear-gradient(135deg, ${colors.from}, ${colors.to})`,
+            boxShadow: `0 4px 15px ${colors.from}40`,
+          }}
+        >
+          ✦
+        </div>
       )}
 
+      {/* Bubble */}
       <div
-        className={`px-4 py-3 rounded-2xl max-w-[75%] text-sm shadow-md ${
+        className={`relative max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap transition-all ${
           isUser
-            ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white"
-            : "bg-white/70 backdrop-blur-lg border border-white/40 dark:bg-slate-900/60 dark:border-slate-700 dark:text-slate-100"
+            ? "bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-tr-sm shadow-lg shadow-violet-900/40"
+            : "text-slate-200 rounded-tl-sm border border-white/8"
         }`}
+        style={
+          !isUser
+            ? {
+                background: colors.bg,
+                backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
+                borderColor: `${colors.from}25`,
+              }
+            : {}
+        }
       >
-        <p className="whitespace-pre-wrap leading-relaxed">{text}</p>
+        {text || <span className="inline-flex gap-1 items-center">
+          <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{animationDelay:'0ms'}} />
+          <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{animationDelay:'150ms'}} />
+          <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{animationDelay:'300ms'}} />
+        </span>}
       </div>
 
+      {/* User avatar */}
       {isUser && (
-        <Image
-          src="/user.png"
-          width={32}
-          height={32}
-          className="rounded-full"
-          alt="User"
-        />
+        <div className="w-8 h-8 rounded-xl flex-shrink-0 bg-gradient-to-br from-violet-500/30 to-indigo-500/30 border border-white/10 flex items-center justify-center text-xs font-bold text-violet-300 mt-1">
+          U
+        </div>
       )}
     </motion.div>
   );
