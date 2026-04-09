@@ -1,0 +1,6 @@
+@echo off
+echo Copying frontend...
+xcopy "C:\Users\shiva\Music\AI -009\frontend" "C:\Users\shiva\OneDrive\Desktop\AI -009\frontend" /E /H /C /I /Y
+echo Copying backend...
+xcopy "C:\Users\shiva\Music\AI -009\backend" "C:\Users\shiva\OneDrive\Desktop\AI -009\backend" /E /H /C /I /Y
+echo Done.
