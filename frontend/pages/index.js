@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import axios from "axios";const FEELINGS = [
+import axios from "axios";
+
+const FEELINGS = [
   { emoji: "😔", label: "Down", value: 1 },
   { emoji: "😊", label: "Content", value: 2 },
   { emoji: "😌", label: "Peaceful", value: 3 },
