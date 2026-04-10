@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { signInWithRedirect, getRedirectResult } from "firebase/auth";
 import axios from "axios";
-import { auth, provider } from "../utils/firebase";
 
 const FEELINGS = [
   { emoji: "😔", label: "Down", value: 1 },
@@ -36,30 +34,6 @@ export default function Landing() {
       setSelectedFeeling(closest);
     }
 
-    // Handle the redirect result when the user returns from Google
-    const checkRedirectResult = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result && result.user) {
-          setIsLoggingIn(true);
-          const user = result.user;
-          localStorage.setItem("user", JSON.stringify(user));
-          
-          await axios.post(`${API_BASE}/user`, {
-            firebaseId: user.uid,
-            name: user.displayName,
-            email: user.email,
-            photo: user.photoURL,
-            personalityType: localStorage.getItem("personality") || "INFP",
-          });
-
-          router.push("/personality-test");
-        }
-      } catch (err) {
-        console.error("Redirect sign-in error:", err);
-      }
-    };
-    checkRedirectResult();
   }, [API_BASE, router]);
 
   const syncMood = (nextValue) => {
@@ -76,25 +50,17 @@ export default function Landing() {
     setSelectedFeeling(closest);
   };
 
-  const handleGoogleLogin = async () => {
-    try {
-      setIsLoggingIn(true);
-      // Redirects the user instead of opening a popup
-      await signInWithRedirect(auth, provider);
-    } catch (err) {
-      console.error(err);
-      alert("Login failed");
-      setIsLoggingIn(false);
-    }
-  };
-
   const handleBegin = () => {
-    const user = localStorage.getItem("user");
-    if (user) {
-      router.push("/chat");
-    } else {
-      handleGoogleLogin();
+    let user = localStorage.getItem("user");
+    if (!user) {
+      user = {
+        firebaseId: "guest_" + Math.random().toString(36).substring(2, 10),
+        name: "Guest User",
+        email: "guest@example.com",
+      };
+      localStorage.setItem("user", JSON.stringify(user));
     }
+    router.push("/chat");
   };
 
   return (
@@ -169,13 +135,7 @@ export default function Landing() {
             >
               Begin Your Journey
             </button>
-            <button
-              onClick={handleGoogleLogin}
-              disabled={isLoggingIn}
-              className="inline-flex items-center gap-2 bg-white/90 dark:bg-slate-900/70 border border-white/70 dark:border-slate-700 text-slate-800 dark:text-slate-100 px-5 py-3 rounded-xl text-sm font-semibold shadow-sm hover:shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              <span>Continue with Google</span>
-            </button>
+
           </div>
 
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
